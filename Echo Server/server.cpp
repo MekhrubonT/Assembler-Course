@@ -19,11 +19,25 @@ const int portno = 8002;
 const int EPOLL_MAX_EVENTS_NUMBER = 10;
 
 
-void client_handle(int clientfd) {
+epoll_event build_client_event_object(int clientfd) {
+	epoll_event client_event;
+	client_event.data.fd = clientfd;
+	client_event.events = EPOLLIN;
+	return client_event;
+}
+
+void client_handle(int clientfd, int evfd) {
 	const static int BUFFERSIZE = 2048;
     int buf[BUFFERSIZE];
     int data = 0;
     data = read(clientfd, buf, BUFFERSIZE);
+    if (data == 0) {
+    	epoll_event client_event = build_client_event_object(clientfd);
+	    epoll_ctl(evfd, EPOLL_CTL_DEL, clientfd, &client_event);
+    	close(clientfd);
+    	return;
+    }
+
     int lo = 0;
     while (lo < data) {
         int writen = write(clientfd, buf + lo, data - lo);
@@ -69,9 +83,7 @@ void add_client_to_epoll(int &socketfd, int &evfd, sockaddr_in& cli_addr, sockle
 	if (clientfd < 0) {
 		return;
 	}
-	epoll_event client_event;
-	client_event.data.fd = clientfd;
-	client_event.events = EPOLLIN;
+	epoll_event client_event = build_client_event_object(clientfd);
     if (epoll_ctl(evfd, EPOLL_CTL_ADD, clientfd, &client_event) == -1) {
         error("Can't listen to client: epoll", 2);
     }            
@@ -97,11 +109,13 @@ int main() {
 			if (events[i].data.fd == socketfd) {
 				add_client_to_epoll(socketfd, evfd, cli_addr, socklen);
 			} else {
-				client_handle(events[i].data.fd);				
+
+				client_handle(events[i].data.fd, evfd);				
 			}
 		}        
     }
 
+    close(evfd);
     close(socketfd);
     return 0;
 }
