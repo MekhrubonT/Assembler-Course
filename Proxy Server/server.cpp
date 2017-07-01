@@ -278,9 +278,10 @@ void proxy_server::write_to_client(const epoll_event& event) {
     reset_timer(cli->get_fd());
     // std::cout << cli->get_data() << "\n";
     // std::cout << cli->get_data().size() << "\t";
-    if (cli->write() == -1) {
-    	disconnect_client(cli->get_fd());
-    } else if (cli->get_data().empty()) {
+    cli->write();
+    	// disconnect_client(cli->get_fd());
+    // } else 
+    if (cli->get_data().empty()) {
         disconnect_client(cli->get_fd());
     }
     // std::cout << "\n\n\n";

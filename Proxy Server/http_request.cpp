@@ -5,6 +5,7 @@
 #include <memory.h>
 
 #include <iostream>
+#include <cassert>
 
 using namespace std;
 
@@ -128,12 +129,13 @@ bool http_request::is_response_finished(const std::string &example) {
 	// std::cout << example << "\n";
 	size_t pos;
 	if (example.find("Transfer-Encoding: chunked") != string::npos) {				
-		if (example.find("0\r\n\r\n") != std::string::npos) {
-			// std::cout << "Ready\n";
+		auto q = example.rfind("0\r\n\r\n");
+		assert(q == example.rfind("0\r\n\r\n"));
+		if (q != std::string::npos && q + 5 == example.size()) {
+
 			return true;
 		}
-	}
-	if ((pos = example.find("Content-Length: ")) != string::npos) {
+	} else if ((pos = example.find("Content-Length: ")) != string::npos) {
 		pos += string{"Content-Length: "}.length();
 		int last = example.find("\r\n", pos);
 		int leng = stoi(example.substr(pos, last - pos));
