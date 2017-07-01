@@ -15,6 +15,7 @@ struct http_request
 	std::string get_request() const;
 
 	static bool is_request_ready(const std::string &request);
+	static bool is_response_finished(const std::string &request);
 
 	bool get_error() const;
 

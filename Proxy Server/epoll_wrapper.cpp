@@ -59,7 +59,7 @@ void epoll_wrapper::execute() {
 	for (int i = 0; i < amount; ++i) {
 		for (auto x : epoll_events_types) {
 			if (!invalid.count(events[i].data.fd) && (events[i].events & x)) {
-				std::cout << events[i].data.fd << ' ' << strrr(x) << "\n";
+				// std::cout << events[i].data.fd << ' ' << strrr(x) << "\n";
 				assert(handlers.count(id(events[i].data.fd, x)));
 				auto handler = handlers.at(id(events[i].data.fd, x));
 				handler(events[i]);

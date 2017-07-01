@@ -67,7 +67,7 @@ socket_wrapper socket_wrapper::accept() {
 std::string socket_wrapper::read(size_t buffer_size) {
 	char buf[buffer_size];
 	int kol = ::read(fd, buf, buffer_size);
-	assert(kol != -1);
+	// assert(kol != -1);
 	return std::string(buf, buf + kol);
 }
 
@@ -76,7 +76,7 @@ std::string socket_wrapper::read(size_t buffer_size) {
 
 int socket_wrapper::write(const std::string& data) {
 	int res = ::write(fd, data.c_str(), data.size());
-	std::cout << "res=" << res << "\n";
+	// std::cout << "res=" << res << "\n";
 	return res;
 }
 

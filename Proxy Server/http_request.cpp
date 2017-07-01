@@ -49,8 +49,8 @@ string remove(string d, string t) {
 }
 
 void http_request::remove_cache_and_set_encoding() {
-	// header = remove(header, "If-Modified-Since:");
-	// header = remove(header, "If-None-Match:");
+	header = remove(header, "If-Modified-Since:");
+	header = remove(header, "If-None-Match:");
 }
 
 bool http_request::operator==(const http_request& other) const {
@@ -122,4 +122,27 @@ void http_request::resolve() {
 
 bool http_request::is_request_ready(const std::string &example) {
 	return example.find("\r\n\r\n") != std::string::npos;
+}
+
+bool http_request::is_response_finished(const std::string &example) {
+	// std::cout << example << "\n";
+	size_t pos;
+	if (example.find("Transfer-Encoding: chunked") != string::npos) {				
+		if (example.find("0\r\n\r\n") != std::string::npos) {
+			// std::cout << "Ready\n";
+			return true;
+		}
+	}
+	if ((pos = example.find("Content-Length: ")) != string::npos) {
+		pos += string{"Content-Length: "}.length();
+		int last = example.find("\r\n", pos);
+		int leng = stoi(example.substr(pos, last - pos));
+		int body = example.find("\r\n\r\n") + 4;
+		if (leng == (int)example.substr(body).length()) {
+			// std::cout << "Ready\n";
+			return true;
+		}
+	}
+	// std::cout << "response is not ready\n";
+	return false;
 }

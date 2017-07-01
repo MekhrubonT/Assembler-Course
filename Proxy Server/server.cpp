@@ -1,3 +1,5 @@
+#define TIMER
+
 #include "proxy_server.h"
 
 #include <iostream>
@@ -61,7 +63,7 @@ namespace {
 proxy_server::proxy_server(int port) : port(port), socket(listenning_socket(port)), epoll(EPOLL_CLOEXEC),
 				resolver_pool(10) {
 
-    std::cout << "Server created\n";
+    // std::cout << "Server created\n";
 
 
     epoll.add_event(socket.get_fd(), EPOLLIN, 
@@ -84,7 +86,7 @@ proxy_server::proxy_server(int port) : port(port), socket(listenning_socket(port
 proxy_server::~proxy_server() {}
 
 void proxy_server::notifier(int client) {
-	std::cout << "notifier called " << client << "\n";
+	// std::cout << "notifier called " << client << "\n";
 	AUTOLOCK(resolved_queue_lock);
 	resolved.push(client); 
     notify_fd.write("0");
@@ -97,11 +99,11 @@ void proxy_server::run() {
 }
 
 void proxy_server::connect_client() {
-    std::cout << "client connected\n";
+    // std::cout << "client connected\n";
     client* cl = new client(socket.accept().release());
     timer_fd* timer = new timer_fd();
 
-    std::cout << "Client " << cl->get_fd() << "\n";
+    // std::cout << "Client " << cl->get_fd() << "\n";
 
     int fd = cl->get_fd();
 
@@ -113,13 +115,15 @@ void proxy_server::connect_client() {
     epoll.add_event(fd, EPOLLIN, [this](const epoll_event& event) {
         read_from_client(event);
     });
+#ifdef TIMER
     epoll.add_event(timer->get_fd(), EPOLLIN, [this, fd](const epoll_event&) {
         disconnect_client(fd);
     });
+#endif
 }
 
 void proxy_server::disconnect_client(int fd) {
-    std::cout << "Disconnecting client " << fd << "\n";
+    // std::cout << "Disconnecting client " << fd << "\n";
     assert(clients.count(fd));
     client* cli = clients.at(fd).get();
 
@@ -152,7 +156,7 @@ void proxy_server::disconnect_client(int fd) {
 }
 
 void proxy_server::disconnect_server(int fd) {
-    std::cout << "Disconnecting server\n";
+    // std::cout << "Disconnecting server\n";
     client* serv = clients.at(fd).get();
     client* cli = clients.at(serv->get_ser_fd()).get();
     cli->unbind();
@@ -170,10 +174,10 @@ void proxy_server::reset_timer(int fd) {
 }
 
 void proxy_server::read_from_client(const epoll_event& event) {
-    std::cout << "reading from client " << event.data.fd << "\n";
+    // std::cout << "reading from client " << event.data.fd << "\n";
     auto client = clients.at(event.data.fd).get();
     reset_timer(client->get_fd());
-    if (client->read(1024) == 0) {
+    if (client->read(8192) == 0) {
         disconnect_client(event.data.fd);
     } else if (http_request::is_request_ready(client->get_data())) {
         // std::cout << client->get_data() << "\n";
@@ -191,7 +195,7 @@ void proxy_server::read_from_client(const epoll_event& event) {
 }
 
 void proxy_server::host_resolved() {
-    std::cout << "resolved\n";
+    // std::cout << "resolved\n";
     vector<int> temp;
     { 
         AUTOLOCK(resolved_queue_lock);
@@ -210,7 +214,7 @@ void proxy_server::host_resolved() {
             if (req->get_error() || server->get_fd() == -1) {
                 disconnect_client(cli->get_fd());
             } else {
-                std::cout << "Server " << server->get_fd() << "\n";
+                // std::cout << "Server " << server->get_fd() << "\n";
                 if (cli->has_server()) {
                     disconnect_server(cli->get_ser_fd());
                 }
@@ -227,7 +231,7 @@ void proxy_server::host_resolved() {
 }
 
 void proxy_server::write_to_server(const epoll_event& event) {
-    std::cout << "writting to server " << event.data.fd << "\n";
+    // std::cout << "writting to server " << event.data.fd << "\n";
     client* server = clients.at(event.data.fd).get();
     reset_timer(server->get_fd());
     if (server->write() == -1) {
@@ -248,36 +252,36 @@ void proxy_server::write_to_server(const epoll_event& event) {
 }
 
 void proxy_server::read_from_server(const epoll_event& event) {
-    std::cout << "Reading from server\n";
+    // std::cout << "Reading from server\n";
     client* server = clients.at(event.data.fd).get();
     reset_timer(server->get_fd());
 
-
-    int res = server->read(1024);
-
-    // std::cout << "\tres=" << res << "\n";
-    if (res == 0) {
-        epoll.del_event(event);
-    } else {
+	// std::cout << server->get_data() << "\n";
+    int pos = server->read(8192);
+    if (pos == -1) {
+    	server->set_data(BAD_REQUEST);
+    }
+    if (pos == 0 || http_request::is_response_finished(server->get_data())) {
+	    epoll.del_event(event);
         epoll.del_event(server->get_ser_fd(), EPOLLIN);
         epoll.add_event(server->get_ser_fd(), EPOLLOUT, 
             [this](const epoll_event& event) {
                 write_to_client(event);
             });
+
     }
-    // std::cout << "\n\n\n";
 }
 
 void proxy_server::write_to_client(const epoll_event& event) {
-    std::cout << "Writting to client\n";
+    // std::cout << "Writting to client\n";
     client* cli = clients.at(event.data.fd).get();
     reset_timer(cli->get_fd());
     // std::cout << cli->get_data() << "\n";
-    std::cout << cli->get_data().size() << "\t";
+    // std::cout << cli->get_data().size() << "\t";
     if (cli->write() == -1) {
     	disconnect_client(cli->get_fd());
     } else if (cli->get_data().empty()) {
-        epoll.del_event(event);
+        disconnect_client(cli->get_fd());
     }
     // std::cout << "\n\n\n";
 }
