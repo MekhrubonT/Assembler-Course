@@ -74,9 +74,10 @@ std::string socket_wrapper::read(size_t buffer_size) {
 #include <strings.h>
 #include <errno.h>
 
-size_t socket_wrapper::write(const std::string& data) {
+int socket_wrapper::write(const std::string& data) {
 	int res = ::write(fd, data.c_str(), data.size());
-	return std::max(0, res);
+	std::cout << "res=" << res << "\n";
+	return res;
 }
 
 
@@ -140,7 +141,7 @@ int client::read(size_t sz) {
 	}
 }
 
-size_t client::write() {
+int client::write() {
 	if (data.empty() && ser) {
 		data = ser->data;
 		ser->data.clear();
@@ -149,6 +150,10 @@ size_t client::write() {
 		return 0;
 	}
 	auto d = socket.write(data);
+	if (d == -1) {
+		std::cout << strerror(errno) << "\n";
+		return errno == EPIPE ? -1 : 0;
+	}
 	data = data.substr(d, data.size() - d);
 	return d;
 }

@@ -230,8 +230,15 @@ void proxy_server::write_to_server(const epoll_event& event) {
     std::cout << "writting to server " << event.data.fd << "\n";
     client* server = clients.at(event.data.fd).get();
     reset_timer(server->get_fd());
-    std::cout << server->write() << "\n";
-    if (server->get_data().empty()) {
+    if (server->write() == -1) {
+    	auto cli = clients.at(server->get_ser_fd()).get();
+    	cli->set_data(BAD_REQUEST);
+    	disconnect_server(server->get_fd());
+    	epoll.add_event(cli->get_fd(), EPOLLOUT, 
+    		[this](const epoll_event& event) {
+    			write_to_client(event);
+    		});
+    } else if (server->get_data().empty()) {
         epoll.del_event(event);
         epoll.add_event(event.data.fd, EPOLLIN,
                 [this](const epoll_event& event) {
@@ -267,8 +274,9 @@ void proxy_server::write_to_client(const epoll_event& event) {
     reset_timer(cli->get_fd());
     // std::cout << cli->get_data() << "\n";
     std::cout << cli->get_data().size() << "\t";
-    std::cout << cli->write() << "\n";
-    if (cli->get_data().empty()) {
+    if (cli->write() == -1) {
+    	disconnect_client(cli->get_fd());
+    } else if (cli->get_data().empty()) {
         epoll.del_event(event);
     }
     // std::cout << "\n\n\n";

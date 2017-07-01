@@ -35,7 +35,7 @@ struct socket_wrapper : file_desc
 	socket_wrapper(int, int, int);
 	socket_wrapper accept();
 	std::string read(size_t buffer_size);
-	size_t write(const std::string&);	
+	int write(const std::string&);	
 };
 
 // default 5 sec
@@ -66,7 +66,7 @@ struct client
 
 
 	int read(size_t buf);
-	size_t write();
+	int write();
 
 private:
 	socket_wrapper socket;

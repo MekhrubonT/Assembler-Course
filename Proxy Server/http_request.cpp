@@ -49,8 +49,8 @@ string remove(string d, string t) {
 }
 
 void http_request::remove_cache_and_set_encoding() {
-	header = remove(header, "If-Modified-Since:");
-	header = remove(header, "If-None-Match:");
+	// header = remove(header, "If-Modified-Since:");
+	// header = remove(header, "If-None-Match:");
 }
 
 bool http_request::operator==(const http_request& other) const {
