@@ -35,6 +35,7 @@ private:
 	void parse_host();
 	void parse_header();
 	void remove_cache_and_set_encoding();
+	void repair_header();
 
 
 	void set_error(bool flag);

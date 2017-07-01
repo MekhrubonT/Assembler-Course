@@ -21,9 +21,20 @@ http_request::http_request(const string& request) : header(::parse_header(reques
 													body(request.substr(header.size(), request.size() - header.size())),
 
 													 error(false) {
+
 	parse_connection_type();
 	parse_host();
+	repair_header();
 	remove_cache_and_set_encoding();
+}
+
+void http_request::repair_header() {
+	if (get_error()) {
+		return;
+	}
+	int pos = header.find(" ");
+	int ddd = header.find(host) + host.size();
+	header.erase(pos + 1, ddd - pos - 1);
 }
 
 void http_request::parse_connection_type() {
