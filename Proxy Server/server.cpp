@@ -19,6 +19,7 @@ using namespace std;
 #define AUTOLOCK(lock) unique_lock<mutex> autolock(lock)
 
 const std::string BAD_REQUEST = "HTTP/1.1 400 Bad Request\r\nServer: proxy\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 164\r\nConnection: close\r\n\r\n<html>\r\n<head><title>400 Bad Request</title></head>\r\n<body bgcolor=\"white\">\r\n<center><h1>400 Bad Request</h1></center>\r\n<hr><center>proxy</center>\r\n</body>\r\n</html>";
+const std::string NOT_FOUND = "HTTP/1.1 404 Not Found\r\nServer: proxy\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 160\r\nConnection: close\r\n\r\n<html>\r\n<head><title>404 Not Found</title></head>\r\n<body bgcolor=\"white\">\r\n<center><h1>404 Not Found</h1></center>\r\n<hr><center>proxy</center>\r\n</body>\r\n</html>";
 
 
 namespace {
@@ -187,7 +188,15 @@ void proxy_server::read_from_client(const epoll_event& event) {
             resolver_pool.submit(requests[client->get_fd()], bind(&proxy_server::notifier, this, client->get_fd()));  
             client->set_data(req->get_request());
         } else {
-            disconnect_client(event.data.fd);
+        	// std::cout << "Here\n";
+        	// std::cout << client->get_data() << "\n";
+        	client->set_data(NOT_FOUND);
+	        // client->write();
+	        epoll.del_event(client->get_fd(), EPOLLIN);
+	        epoll.add_event(client->get_fd(), EPOLLOUT, 
+	            [this](const epoll_event& event) {
+	                write_to_client(event);
+	            });
         }
         // epoll.del_event(event);
     }  
@@ -273,7 +282,7 @@ void proxy_server::read_from_server(const epoll_event& event) {
 }
 
 void proxy_server::write_to_client(const epoll_event& event) {
-    // std::cout << "Writting to client\n";
+    std::cout << "Writting to client\n";
     client* cli = clients.at(event.data.fd).get();
     reset_timer(cli->get_fd());
     // std::cout << cli->get_data() << "\n";
