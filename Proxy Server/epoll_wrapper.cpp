@@ -18,27 +18,25 @@ epoll_wrapper::~epoll_wrapper() {}
 
 
 void epoll_wrapper::add_event(int fd, int flags, std::function<void(epoll_event&)> handle) {
-	// std::cout << "#####################################added event " << fd << " " << flags << "\n";
+	while (change_client(fd, EPOLL_CTL_ADD, flags) == -1);
 	handlers.emplace(id(fd, flags), handle);
-	change_client(fd, EPOLL_CTL_ADD, flags);
 }
 
 void epoll_wrapper::del_event(int fd, int flags) {
-	// std::cout << "######################################deleted event " << fd << " " << flags << "\n";
+	while (change_client(fd, EPOLL_CTL_DEL, flags) != -1);
 	handlers.erase(id(fd, flags));
-	change_client(fd, EPOLL_CTL_DEL, flags);
 }
 
 void epoll_wrapper::del_event(const epoll_event& event) {
 	del_event(event.data.fd, event.events);
 }
 
-void epoll_wrapper::change_client(int clfd, int change_op, int flags) {
+int epoll_wrapper::change_client(int clfd, int change_op, int flags) {
 	epoll_event client_event;
 	client_event.data.fd = clfd;
 	client_event.events = flags;
 
-    epoll_ctl(fd, change_op, clfd, &client_event);
+    return epoll_ctl(fd, change_op, clfd, &client_event);
 }
 
 void epoll_wrapper::execute() {
@@ -48,6 +46,7 @@ void epoll_wrapper::execute() {
 	invalid.clear();
 
 	static const int epoll_events_types[] = {EPOLLIN, EPOLLOUT};
+#ifdef DEBUG
 	auto strrr = [](int x) {
 		if (x == EPOLLIN) return "epollin";
 		if (x == EPOLLOUT) return "epollout";
@@ -55,12 +54,13 @@ void epoll_wrapper::execute() {
 		if (x == EPOLLHUP) return "epollhup";
 		return "don't know";
 	};
+#endif
 	
 	for (int i = 0; i < amount; ++i) {
 		for (auto x : epoll_events_types) {
 			if (!invalid.count(events[i].data.fd) && (events[i].events & x)) {
-				// std::cout << events[i].data.fd << ' ' << strrr(x) << "\n";
-				assert(handlers.count(id(events[i].data.fd, x)));
+				// if (!handlers.count(id(events[i].data.fd, x)))
+						// assert(handlers.count(id(events[i].data.fd, x)));
 				auto handler = handlers.at(id(events[i].data.fd, x));
 				handler(events[i]);
 			}

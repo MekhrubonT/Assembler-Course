@@ -1,3 +1,4 @@
+#include "setup.h"
 #include "client_and_servers.h"
 
 #include <sys/types.h>
@@ -20,9 +21,9 @@ file_desc::file_desc() : fd(-1) {}
 file_desc::~file_desc() {
 	if (fd != -1) {
 		if (close(fd) == -1) {
-			std::cerr << "Error while closing " << fd << std::endl;
+			log("Error while closing ", fd, "\n");
 		} else {
-			std::cout << "Closed " << fd << std::endl;
+			log("Closed ", fd, "\n");
 		}
 	}
 }
@@ -151,7 +152,7 @@ int client::write() {
 	}
 	auto d = socket.write(data);
 	if (d == -1) {
-		std::cout << strerror(errno) << "\n";
+		log(strerror(errno), "\n");
 		return errno == EPIPE ? -1 : 0;
 	}
 	data = data.substr(d, data.size() - d);

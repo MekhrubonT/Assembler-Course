@@ -27,7 +27,7 @@ struct epoll_wrapper : file_desc
 	void invalidate(int fd);
 
 private:
-	void change_client(int fd, int op, int flags);
+	int change_client(int fd, int op, int flags);
 
 	struct id {
 		id(int fd, int flags);

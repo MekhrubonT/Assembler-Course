@@ -18,7 +18,6 @@ struct http_request
 	static bool is_response_finished(const std::string &request);
 
 	bool get_error() const;
-
 	sockaddr get_server() const;
 
 
@@ -38,7 +37,7 @@ private:
 	void repair_header();
 
 
-	void set_error(bool flag);
+	void set_error(int flag);
 	void set_server_addr(const sockaddr& addr);
 
 	int client_id;
@@ -47,8 +46,10 @@ private:
 	std::string body;
 	std::string host;
 
+
 	sockaddr server_addr;
-	bool error;
+	
+	int error;
 	size_t port_delim;
 };
 
@@ -61,11 +62,5 @@ namespace std {
 		}
 	};
 }
-
-
-struct http_response
-{
-	
-};
 
 #endif

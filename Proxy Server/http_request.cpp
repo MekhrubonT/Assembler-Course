@@ -1,3 +1,4 @@
+#include "setup.h"
 #include "http_request.h"
 
 #include <netdb.h>
@@ -13,14 +14,14 @@ using namespace std;
 
 namespace {
 	string parse_header(const string &request) {
-		return request.substr(0, request.find("\r\n\r\n", 0) + 2);
+		return request.substr(0, request.find(DCRLF) + DCRLF.size());
 	}	
 }
 
 http_request::http_request(const string& request) : header(::parse_header(request)),
 													body(request.substr(header.size(), request.size() - header.size())),
 
-													 error(false) {
+													 error(0) {
 
 	parse_connection_type();
 	parse_host();
@@ -38,7 +39,7 @@ void http_request::repair_header() {
 }
 
 void http_request::parse_connection_type() {
-	std::cout << header << "\n";
+	log(header, "\n");
 	if (header.size() >= 3 && header.substr(0, 3) == "GET") {
 		return;
 	}
@@ -46,15 +47,17 @@ void http_request::parse_connection_type() {
 		return;
 	}
 
-	std::cout << "Only GET requests are supported\n";
-	set_error(true);
+#ifdef DEBUG
+	log("Only GET requests are supported\n");
+#endif
 
+	set_error(NOT_GET_REQUEST);
 }
 
 string remove(string d, string t) {
 	auto st = d.find(t, 0);
 	if (st != string::npos) {
-	 	auto end = d.find("\r\n", st) + 2;
+	 	auto end = d.find(CRLF, st) + CRLF.size();
 		d.erase(st, end - st);
 	}
 	return d;
@@ -72,11 +75,13 @@ bool http_request::operator==(const http_request& other) const {
 void http_request::parse_host() {
 	size_t host_ind = header.find("Host:");
 	if (host_ind == string::npos) {
+#ifdef DEFINE
 		std::cout << "Host can't be found";
-		set_error(true);
+#endif
+		set_error(NO_HOST_IN_REQUEST);
 	} else {
 		host_ind += 6;
-		int endline = header.find("\r\n", host_ind);
+		int endline = header.find(CRLF, host_ind);
 		host = header.substr(host_ind, endline - host_ind);
 		port_delim = host.find(":");
 	}
@@ -93,7 +98,7 @@ sockaddr http_request::get_server() const {
 	return server_addr;
 }
 
-void http_request::set_error(bool flag) {
+void http_request::set_error(int flag) {
 	error = flag;
 }
 bool http_request::get_error() const {
@@ -125,7 +130,7 @@ void http_request::resolve() {
     int error = getaddrinfo(name.c_str(), port.c_str(), &hints, &res);
 
     if (error) {
-    	set_error(true);
+    	set_error(CANT_RESOLVE_HOST);
     } else {
     	set_server_addr(*res[0].ai_addr);
     	freeaddrinfo(res);
@@ -140,20 +145,21 @@ bool http_request::is_response_finished(const std::string &example) {
 	// std::cout << example << "\n";
 	size_t pos;
 	if (example.find("Transfer-Encoding: chunked") != string::npos) {				
-		auto q = example.rfind("0\r\n\r\n");
-		assert(q == example.rfind("0\r\n\r\n"));
+		auto q = example.rfind("0" + DCRLF);
 		if (q != std::string::npos && q + 5 == example.size()) {
-
 			return true;
 		}
 	} else if ((pos = example.find("Content-Length: ")) != string::npos) {
+		// log("example\n\n\n\n", example);
 		pos += string{"Content-Length: "}.length();
-		int last = example.find("\r\n", pos);
-		int leng = stoi(example.substr(pos, last - pos));
-		int body = example.find("\r\n\r\n") + 4;
-		if (leng == (int)example.substr(body).length()) {
-			// std::cout << "Ready\n";
-			return true;
+		log(example.substr(pos, example.size() - pos), "\n");
+		auto last = example.find(CRLF, pos);
+		if (last != string::npos) {
+			int leng = stoi(example.substr(pos, last - pos));
+			auto body = example.find(DCRLF);
+			if (body != string::npos && leng == (int)example.substr(body + DCRLF.size()).length()) {
+				return true;
+			}
 		}
 	}
 	// std::cout << "response is not ready\n";
